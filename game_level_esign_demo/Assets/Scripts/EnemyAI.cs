@@ -97,12 +97,12 @@ public class EnemyAI : MonoBehaviour
         alreadyAttacked = false;
     }
 
-    public void TakeDamage(int damage)
-    {
-        health -= damage;
+    public void TakeDamage(int dmg) {
+        health -= dmg;
+         if (health <= 0) DestroyEnemy();
+        // … your death logic …
+}
 
-        if (health <= 0) Invoke(nameof(DestroyEnemy), 0.5f);
-    }
 
     private void DestroyEnemy()
     {

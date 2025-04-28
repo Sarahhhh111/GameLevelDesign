@@ -6,38 +6,49 @@ using TMPro;
 [RequireComponent(typeof(CharacterController))]
 public class FPSController : MonoBehaviour
 {
+    [Header("Audio")]
     public AudioClip walkingClip;
     public AudioClip enemyHitClip;
 
     private float walkSoundCooldown = 0.5f;
     private float walkSoundTimer = 0f;
 
+    [Header("Movement")]
     public Camera playerCamera;
     public float walkSpeed = 12f;
     public float runSpeed = 24f;
     public float jumpPower = 7f;
     public float gravity = 9.5f;
 
+    [Header("Look")]
     public float lookSpeed = 2f;
     public float lookXLimit = 45f;
 
     private Vector3 moveDirection = Vector3.zero;
     private float rotationX = 0;
     public bool canMove = true;
-
     private CharacterController characterController;
 
-    // Health system
+    [Header("Health System")]
     public int maxHealth = 100;
     public int currentHealth;
     public TMP_Text healthText;
-
     public float damageCooldown = 1.5f;
     private float lastHitTime = -999f;
 
-    // Gold system
+    [Header("Gold System")]
     public int gold = 0;
     public TMP_Text goldText;
+
+    [Header("Built-in Shooting (optional)")]
+    public bool useBuiltInShooting = false;
+    public float damage = 10f;
+    public float range = 100f;
+    public float fireRate = 15f;
+    public ParticleSystem muzzleFlash;
+    public GameObject impactEffect;
+
+    private float nextTimeToFire = 0f;
 
     void Start()
     {
@@ -54,6 +65,9 @@ public class FPSController : MonoBehaviour
     {
         HandleMovement();
         HandleRotation();
+
+        if (useBuiltInShooting)
+            HandleShooting();
     }
 
     void HandleMovement()
@@ -66,24 +80,14 @@ public class FPSController : MonoBehaviour
 
         float moveHorizontal = Input.GetAxis("Horizontal");
         float moveVertical = Input.GetAxis("Vertical");
-
-        Vector3 horizontalMovement = right * moveHorizontal * speed;
-        Vector3 verticalMovement = forward * moveVertical * speed;
-        Vector3 movement = horizontalMovement + verticalMovement;
+        Vector3 movement = (right * moveHorizontal + forward * moveVertical) * speed;
 
         moveDirection.x = movement.x;
         moveDirection.z = movement.z;
 
         if (characterController.isGrounded)
         {
-            if (Input.GetButton("Jump") && canMove)
-            {
-                moveDirection.y = jumpPower;
-            }
-            else
-            {
-                moveDirection.y = 0;
-            }
+            moveDirection.y = (Input.GetButton("Jump") && canMove) ? jumpPower : 0f;
 
             if (movement.magnitude > 0.1f && canMove)
             {
@@ -94,54 +98,74 @@ public class FPSController : MonoBehaviour
                     walkSoundTimer = walkSoundCooldown;
                 }
             }
-            else
-            {
-                walkSoundTimer = 0f;
-            }
+            else walkSoundTimer = 0f;
         }
-        else
-        {
-            moveDirection.y -= gravity * Time.deltaTime;
-        }
+        else moveDirection.y -= gravity * Time.deltaTime;
 
         characterController.Move(moveDirection * Time.deltaTime);
     }
 
     void HandleRotation()
     {
-        if (canMove)
+        if (!canMove) return;
+
+        rotationX += -Input.GetAxis("Mouse Y") * lookSpeed;
+        rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
+        playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
+        transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
+    }
+
+    void HandleShooting()
+    {
+        if (Input.GetButton("Fire1") && Time.time >= nextTimeToFire)
         {
-            rotationX += -Input.GetAxis("Mouse Y") * lookSpeed;
-            rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
-            playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
-            transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
+            nextTimeToFire = Time.time + 1f / fireRate;
+            Shoot();
+        }
+    }
+
+    void Shoot()
+    {
+        if (muzzleFlash != null)
+            muzzleFlash.Play();
+
+        if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out RaycastHit hit, range))
+        {
+            var enemy = hit.transform.GetComponent<EnemyAI>();
+            if (enemy != null)
+                enemy.TakeDamage(Mathf.RoundToInt(damage));
+
+            if (impactEffect != null)
+            {
+                var go = Instantiate(impactEffect, hit.point, Quaternion.LookRotation(hit.normal));
+                Destroy(go, 2f);
+            }
         }
     }
 
     public void TakeDamage(int amount)
     {
+        if (Time.time - lastHitTime < damageCooldown)
+            return;
+
+        lastHitTime = Time.time;
         currentHealth -= amount;
         if (currentHealth <= 0)
         {
             currentHealth = 0;
             Die();
         }
-        UpdateHealthUI();
 
+        UpdateHealthUI();
         if (enemyHitClip != null)
-        {
             AudioSource.PlayClipAtPoint(enemyHitClip, transform.position);
-        }
 
         Debug.Log("Player took damage! Current health: " + currentHealth);
     }
 
     public void Heal(int amount)
     {
-        currentHealth += amount;
-        if (currentHealth > maxHealth)
-            currentHealth = maxHealth;
-
+        currentHealth = Mathf.Min(currentHealth + amount, maxHealth);
         UpdateHealthUI();
         Debug.Log("Healed! New health: " + currentHealth);
     }
@@ -156,19 +180,14 @@ public class FPSController : MonoBehaviour
     void UpdateHealthUI()
     {
         if (healthText != null)
-        {
             healthText.text = "Health: " + currentHealth;
-        }
     }
 
     void UpdateGoldUI()
     {
         if (goldText != null)
-        {
             goldText.text = "Gold: " + gold;
-        }
     }
-
 
     void Die()
     {
@@ -190,17 +209,16 @@ public class FPSController : MonoBehaviour
         {
             if (Time.time - lastHitTime >= damageCooldown)
             {
-                TakeDamage(20); // Boss does 20 damage! 
+                TakeDamage(20); // Boss does 20 damage!
                 lastHitTime = Time.time;
             }
         }
 
-        if (hit.gameObject.GetComponent<HealthItem>() != null)
+        var item = hit.gameObject.GetComponent<HealthItem>();
+        if (item != null)
         {
-            var item = hit.gameObject.GetComponent<HealthItem>();
             Heal(item.healAmount);
             Destroy(hit.gameObject);
         }
     }
-
 }
