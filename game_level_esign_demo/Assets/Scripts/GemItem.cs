@@ -1,13 +1,13 @@
 using UnityEngine;
 
-public class GoldItem : MonoBehaviour
+public class GemItem : MonoBehaviour
 {
-    [Tooltip("How much gold this strawberry grants.")]
+    [Tooltip("How many gold (or points) this gem gives.")]
     public int value = 1;
 
     private void OnTriggerEnter(Collider other)
     {
-        // Only the player picks up strawberries:
+        // only let the player pick it up:
         var fps = other.GetComponent<FPSController>();
         if (fps != null)
         {
