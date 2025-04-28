@@ -6,6 +6,8 @@ TagManager:
   tags:
   - Enemy
   - healthItem
+  - goldItem
+  - Boss
   layers:
   - Default
   - TransparentFX

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
@@ -27,14 +27,17 @@ public class FPSController : MonoBehaviour
 
     private CharacterController characterController;
 
-   
+    // Health system
     public int maxHealth = 100;
     public int currentHealth;
     public TMP_Text healthText;
 
-    
     public float damageCooldown = 1.5f;
     private float lastHitTime = -999f;
+
+    // Gold system
+    public int gold = 0;
+    public TMP_Text goldText;
 
     void Start()
     {
@@ -44,6 +47,7 @@ public class FPSController : MonoBehaviour
 
         currentHealth = maxHealth;
         UpdateHealthUI();
+        UpdateGoldUI();
     }
 
     void Update()
@@ -132,22 +136,6 @@ public class FPSController : MonoBehaviour
         Debug.Log("Player took damage! Current health: " + currentHealth);
     }
 
-
-
-    void UpdateHealthUI()
-    {
-        if (healthText != null)
-        {
-            healthText.text = "Health: " + currentHealth;
-        }
-    }
-
-    void Die()
-    {
-        Debug.Log("Player Died!");
-        // Add respawn or game over logic here
-    }
-
     public void Heal(int amount)
     {
         currentHealth += amount;
@@ -158,6 +146,35 @@ public class FPSController : MonoBehaviour
         Debug.Log("Healed! New health: " + currentHealth);
     }
 
+    public void AddGold(int amount)
+    {
+        gold += amount;
+        UpdateGoldUI();
+        Debug.Log("Gold collected! Total: " + gold);
+    }
+
+    void UpdateHealthUI()
+    {
+        if (healthText != null)
+        {
+            healthText.text = "Health: " + currentHealth;
+        }
+    }
+
+    void UpdateGoldUI()
+    {
+        if (goldText != null)
+        {
+            goldText.text = "Gold: " + gold;
+        }
+    }
+
+
+    void Die()
+    {
+        Debug.Log("Player Died!");
+        // Add respawn or game over logic here
+    }
 
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
@@ -165,20 +182,25 @@ public class FPSController : MonoBehaviour
         {
             if (Time.time - lastHitTime >= damageCooldown)
             {
-                TakeDamage(5);
+                TakeDamage(5); // Normal enemy does 5 damage
+                lastHitTime = Time.time;
+            }
+        }
+        else if (hit.gameObject.CompareTag("Boss"))
+        {
+            if (Time.time - lastHitTime >= damageCooldown)
+            {
+                TakeDamage(20); // Boss does 20 damage! 
                 lastHitTime = Time.time;
             }
         }
 
-        
         if (hit.gameObject.GetComponent<HealthItem>() != null)
         {
-            HealthItem shroom = hit.gameObject.GetComponent<HealthItem>();
-            Heal(shroom.healAmount);
+            var item = hit.gameObject.GetComponent<HealthItem>();
+            Heal(item.healAmount);
             Destroy(hit.gameObject);
-            Debug.Log("Picked up shroom! + " + shroom.healAmount + " HP");
         }
     }
-
 
 }

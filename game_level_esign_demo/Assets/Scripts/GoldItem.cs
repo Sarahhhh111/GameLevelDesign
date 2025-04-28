@@ -1,8 +1,8 @@
 using UnityEngine;
 
-public class HealthItem : MonoBehaviour
+public class GoldItem : MonoBehaviour
 {
-    public int healAmount = 5;
+    public int goldAmount = 5;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -11,8 +11,8 @@ public class HealthItem : MonoBehaviour
             FPSController player = other.GetComponent<FPSController>();
             if (player != null)
             {
-                player.Heal(healAmount);
-                Debug.Log("Player healed for " + healAmount + " HP");
+                player.Heal(goldAmount);
+                Debug.Log("Player gained " + goldAmount + "g");
                 Destroy(gameObject);
             }
         }
